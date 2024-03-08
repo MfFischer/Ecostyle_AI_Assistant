@@ -1,0 +1,244 @@
+{
+  "name": "AI Assistant Chat Workflow - Enhanced Vector Search (COMPLETE)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Chat Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 304],
+      "webhookId": "01dfe7db-73c8-4b8b-923a-4e06a186aa0f"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "input-type-check",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "voice",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "input-type-check",
+      "name": "Check Input Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [464, 304]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3004/stt",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "audio",
+              "value": "={{ $binary.audio }}"
+            },
+            {
+              "name": "language",
+              "value": "={{ $json.language || 'auto' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "whisper-stt",
+      "name": "Free STT (Whisper.cpp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [688, 192]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Language detection function\nfunction detectLanguage(text) {\n  const germanWords = ['der', 'die', 'das', 'und', 'ist', 'haben', 'sie', 'ich', 'mit', 'für', 'auf', 'von', 'zu', 'ein', 'eine', 'haben', 'größe', 'verfügbar', 'kosten', 'preis'];\n  const englishWords = ['the', 'and', 'is', 'have', 'you', 'i', 'with', 'for', 'on', 'from', 'to', 'a', 'an', 'size', 'available', 'cost', 'price'];\n  \n  const words = text.toLowerCase().split(/\\s+/);\n  let germanScore = 0;\n  let englishScore = 0;\n\n  words.forEach(word => {\n    if (germanWords.includes(word)) germanScore++;\n    if (englishWords.includes(word)) englishScore++;\n  });\n\n  return germanScore > englishScore ? 'de' : 'en';\n}\n\n// Get the message text from webhook (correct way to access webhook data)\nconst webhookData = $input.first().json;\nconst messageText = webhookData.message || webhookData.text || '';\nconst inputLanguage = webhookData.language;\n\n// Validate messageText\nif (!messageText || typeof messageText !== 'string') {\n  throw new Error('No valid message text found in input. Expected message or text field.');\n}\n\n// Detect language if not specified\nconst detectedLanguage = inputLanguage || detectLanguage(messageText);\n\n// Check if this looks like an e-commerce query\nconst ecommerceKeywords = ['price', 'cost', 'buy', 'purchase', 'stock', 'available', 'size', 'color', 'product', 'preis', 'kosten', 'kaufen', 'verfügbar', 'größe', 'farbe', 'produkt'];\nconst isEcommerceQuery = messageText && typeof messageText === 'string' ? \n  ecommerceKeywords.some(keyword => messageText.toLowerCase().includes(keyword)) : false;\n\nreturn {\n  messageText,\n  detectedLanguage,\n  isEcommerceQuery,\n  sessionId: webhookData.sessionId || 'anonymous',\n  timestamp: new Date().toISOString(),\n  originalInput: webhookData\n};"
+      },
+      "id": "language-detection",
+      "name": "Language Detection & Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [912, 304]
+    }
+    ,
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedText",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyAj0btu828R6Vz2275gMktnE7eOt53oJbQ"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"text\": \"{{ $('Language Detection & Processing').item.json.messageText }}\"\n}",
+        "options": {}
+      },
+      "id": "create-embedding",
+      "name": "Create Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 304]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/knowledge/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"vector\": {{ $('Create Embedding').item.json.embedding.values }},\n  \"limit\": 5,\n  \"with_payload\": true,\n  \"score_threshold\": 0.7\n}",
+        "options": {}
+      },
+      "id": "qdrant-knowledge-search",
+      "name": "Qdrant Knowledge Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1344, 384]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/products/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"vector\": {{ $('Create Embedding').item.json.embedding.values }},\n  \"limit\": 10,\n  \"with_payload\": true,\n  \"score_threshold\": 0.6,\n  \"filter\": {\n    \"should\": [\n      {\n        \"key\": \"language\",\n        \"match\": {\n          \"value\": \"{{ $('Language Detection & Processing').item.json.detectedLanguage }}\"\n        }\n      },\n      {\n        \"key\": \"language\",\n        \"match\": {\n          \"value\": \"multi\"\n        }\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "product-vector-search",
+      "name": "Product Vector Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1344, 224]
+    }
+  ],
+  "connections": {
+    "Chat Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Input Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Input Type": {
+      "main": [
+        [
+          {
+            "node": "Free STT (Whisper.cpp)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Language Detection & Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Free STT (Whisper.cpp)": {
+      "main": [
+        [
+          {
+            "node": "Language Detection & Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Language Detection & Processing": {
+      "main": [
+        [
+          {
+            "node": "Create Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Embedding": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Knowledge Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Product Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "saveExecutionProgress": true
+  },
+  "versionId": "360b372a-00ea-43ca-aad1-7fa827ff1191",
+  "id": "bwOE09KQ8lAReycy"
+}

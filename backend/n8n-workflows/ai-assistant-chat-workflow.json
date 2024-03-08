@@ -1,0 +1,570 @@
+{
+  "name": "AI Assistant Chat Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Chat Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "chat-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "input-type-check",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "voice",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "input-type-check",
+      "name": "Check Input Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3004/stt",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "audio",
+              "value": "={{ $binary.audio }}"
+            },
+            {
+              "name": "language",
+              "value": "={{ $json.language || 'auto' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "whisper-stt",
+      "name": "Free STT (Whisper.cpp)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Language detection function\nfunction detectLanguage(text) {\n  const germanWords = ['der', 'die', 'das', 'und', 'ist', 'haben', 'sie', 'ich', 'mit', 'für', 'auf', 'von', 'zu', 'ein', 'eine', 'haben', 'größe', 'verfügbar', 'kosten', 'preis'];\n  const englishWords = ['the', 'and', 'is', 'have', 'you', 'i', 'with', 'for', 'on', 'from', 'to', 'a', 'an', 'size', 'available', 'cost', 'price'];\n  \n  const words = text.toLowerCase().split(/\\s+/);\n  let germanScore = 0;\n  let englishScore = 0;\n\n  words.forEach(word => {\n    if (germanWords.includes(word)) germanScore++;\n    if (englishWords.includes(word)) englishScore++;\n  });\n\n  return germanScore > englishScore ? 'de' : 'en';\n}\n\n// Get the message text (from STT or direct input)\nconst messageText = $input.first().json.text || $input.first().json.message;\nconst inputLanguage = $input.first().json.language;\n\n// Detect language if not specified\nconst detectedLanguage = inputLanguage || detectLanguage(messageText);\n\n// Check if this looks like an e-commerce query\nconst ecommerceKeywords = ['price', 'cost', 'buy', 'purchase', 'stock', 'available', 'size', 'color', 'product', 'preis', 'kosten', 'kaufen', 'verfügbar', 'größe', 'farbe', 'produkt'];\nconst isEcommerceQuery = ecommerceKeywords.some(keyword => \n  messageText.toLowerCase().includes(keyword)\n);\n\nreturn {\n  messageText,\n  detectedLanguage,\n  isEcommerceQuery,\n  sessionId: $input.first().json.sessionId || 'anonymous',\n  timestamp: new Date().toISOString(),\n  originalInput: $input.first().json\n};"
+      },
+      "id": "language-detection",
+      "name": "Language Detection & Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedText",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyAj0btu828R6Vz2275gMktnE7eOt53oJbQ"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"text\": \"{{ $json.messageText }}\"\n}",
+        "options": {}
+      },
+      "id": "create-embedding",
+      "name": "Create Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/knowledge_base/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"vector\": {{ $json.data[0].embedding }},\n  \"limit\": 5,\n  \"with_payload\": true,\n  \"score_threshold\": 0.7\n}",
+        "options": {}
+      },
+      "id": "qdrant-search",
+      "name": "Qdrant Knowledge Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/products/points/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"vector\": {{ $('Create Embedding').item.json.data[0].embedding }},\n  \"limit\": 10,\n  \"with_payload\": true,\n  \"score_threshold\": 0.6,\n  \"filter\": {\n    \"should\": [\n      {\n        \"key\": \"language\",\n        \"match\": {\n          \"value\": \"{{ $('Language Detection & Processing').item.json.detectedLanguage }}\"\n        }\n      },\n      {\n        \"key\": \"language\",\n        \"match\": {\n          \"value\": \"multi\"\n        }\n      }\n    ]\n  }\n}",
+        "options": {}
+      },
+      "id": "product-vector-search",
+      "name": "Product Vector Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "ecommerce-check",
+              "leftValue": "={{ $('Language Detection & Processing').item.json.isEcommerceQuery }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ecommerce-check",
+      "name": "E-commerce Query?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3001/api/products/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"query\": \"{{ $('Language Detection & Processing').item.json.messageText }}\",\n  \"language\": \"{{ $('Language Detection & Processing').item.json.detectedLanguage }}\"\n}",
+        "options": {}
+      },
+      "id": "ecommerce-api",
+      "name": "E-commerce API Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 180]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "AIzaSyAj0btu828R6Vz2275gMktnE7eOt53oJbQ"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"contents\": [\n    {\n      \"parts\": [\n        {\n          \"text\": \"You are a helpful multilingual AI assistant for EcoStyle Fashion, a sustainable fashion retailer. You can communicate in German and English. Use the provided knowledge base context and product information to answer questions accurately. Always respond in the same language as the user's question.\\n\\nKnowledge Base Context: {{ $('Qdrant Knowledge Search').item.json.result || 'No relevant knowledge found' }}\\n\\nSimilar Products (Vector Search): {{ $('Product Vector Search').item.json.result || 'No similar products found' }}\\n\\nDetailed Product Information: {{ $('E-commerce API Call').item.json || 'No detailed product data available' }}\\n\\nUser Question: {{ $('Language Detection & Processing').item.json.messageText }}\\n\\nPlease provide helpful, accurate responses about our products, policies, and services. Use the vector search results to suggest similar or related products when relevant.\"\n        }\n      ]\n    }\n  ],\n  \"generationConfig\": {\n    \"temperature\": 0.7,\n    \"maxOutputTokens\": 500\n  }\n}"
+      },
+      "id": "generate-ai-response",
+      "name": "Generate AI Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "tts-enabled-check",
+              "leftValue": "{{ $env.TTS_ENABLED }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "tts-check",
+      "name": "TTS Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3003/tts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"text\": \"{{ $('Generate AI Response').item.json.candidates[0].content.parts[0].text }}\",\n  \"language\": \"{{ $('Language Detection & Processing').item.json.detectedLanguage }}\",\n  \"sessionId\": \"{{ $('Language Detection & Processing').item.json.sessionId }}\"\n}",
+        "options": {}
+      },
+      "id": "text-to-speech",
+      "name": "Free TTS (gTTS)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 180]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Anonymization function\nfunction anonymizeText(text) {\n  // Remove email addresses\n  text = text.replace(/\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b/g, '[EMAIL]');\n  \n  // Remove phone numbers (basic patterns)\n  text = text.replace(/\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b/g, '[PHONE]');\n  text = text.replace(/\\b\\+\\d{1,3}[-.]?\\d{3,14}\\b/g, '[PHONE]');\n  \n  // Remove potential names (words starting with capital letters, basic heuristic)\n  // This is a simple approach - in production, use more sophisticated NER\n  \n  return text;\n}\n\n// Create hash of user message for privacy\nconst crypto = require('crypto');\nconst userMessage = $('Language Detection & Processing').item.json.messageText;\nconst messageHash = crypto.createHash('sha256').update(userMessage).digest('hex');\n\n// Get all the data we need\nconst aiResponse = $('Generate AI Response').item.json.candidates[0].content.parts[0].text;\nconst language = $('Language Detection & Processing').item.json.detectedLanguage;\nconst sessionId = $('Language Detection & Processing').item.json.sessionId;\nconst hasVoiceInput = $('Language Detection & Processing').item.json.originalInput.type === 'voice';\nconst hasVoiceOutput = $('TTS Enabled?').item ? true : false;\nconst knowledgeHits = $('Qdrant Knowledge Search').item.json.result?.length || 0;\nconst ecommerceApiCalled = $('Language Detection & Processing').item.json.isEcommerceQuery;\n\n// Calculate processing time\nconst startTime = new Date($('Language Detection & Processing').item.json.timestamp);\nconst processingTime = Date.now() - startTime.getTime();\n\nreturn {\n  // For database logging (anonymized)\n  logging: {\n    sessionId,\n    userMessageHash: messageHash,\n    userLanguage: language,\n    botResponse: anonymizeText(aiResponse),\n    responseLanguage: language,\n    hasVoiceInput,\n    hasVoiceOutput,\n    processingTimeMs: processingTime,\n    knowledgeBaseHits: knowledgeHits,\n    ecommerceApiCalled\n  },\n  // For frontend response\n  response: {\n    success: true,\n    message: aiResponse,\n    language: language,\n    audioUrl: hasVoiceOutput ? '/audio/' + sessionId + '.mp3' : null,\n    processingTime: processingTime\n  }\n};"
+      },
+      "id": "anonymize-and-format",
+      "name": "Anonymize & Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO conversations (\n  session_id, user_message_hash, user_language, \n  bot_response, response_language, has_voice_input, \n  has_voice_output, processing_time_ms, knowledge_base_hits, \n  ecommerce_api_called\n) VALUES (\n  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10\n)",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "parameters": {
+          "parameters": [
+            {
+              "name": "session_id",
+              "value": "={{ $json.logging.sessionId }}"
+            },
+            {
+              "name": "user_message_hash",
+              "value": "={{ $json.logging.userMessageHash }}"
+            },
+            {
+              "name": "user_language",
+              "value": "={{ $json.logging.userLanguage }}"
+            },
+            {
+              "name": "bot_response",
+              "value": "={{ $json.logging.botResponse }}"
+            },
+            {
+              "name": "response_language",
+              "value": "={{ $json.logging.responseLanguage }}"
+            },
+            {
+              "name": "has_voice_input",
+              "value": "={{ $json.logging.hasVoiceInput }}"
+            },
+            {
+              "name": "has_voice_output",
+              "value": "={{ $json.logging.hasVoiceOutput }}"
+            },
+            {
+              "name": "processing_time_ms",
+              "value": "={{ $json.logging.processingTimeMs }}"
+            },
+            {
+              "name": "knowledge_base_hits",
+              "value": "={{ $json.logging.knowledgeBaseHits }}"
+            },
+            {
+              "name": "ecommerce_api_called",
+              "value": "={{ $json.logging.ecommerceApiCalled }}"
+            }
+          ]
+        }
+      },
+      "id": "log-to-database",
+      "name": "Log to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $('Anonymize & Format Response').item.json.response }}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [3100, 300]
+    }
+  ],
+  "connections": {
+    "Chat Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Input Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Input Type": {
+      "main": [
+        [
+          {
+            "node": "Whisper STT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Language Detection & Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Whisper STT": {
+      "main": [
+        [
+          {
+            "node": "Language Detection & Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Language Detection & Processing": {
+      "main": [
+        [
+          {
+            "node": "Create Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Embedding": {
+      "main": [
+        [
+          {
+            "node": "Qdrant Knowledge Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Product Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant Knowledge Search": {
+      "main": [
+        [
+          {
+            "node": "E-commerce Query?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Product Vector Search": {
+      "main": [
+        [
+          {
+            "node": "E-commerce Query?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-commerce Query?": {
+      "main": [
+        [
+          {
+            "node": "E-commerce API Call",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "E-commerce API Call": {
+      "main": [
+        [
+          {
+            "node": "Generate AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate AI Response": {
+      "main": [
+        [
+          {
+            "node": "TTS Enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "TTS Enabled?": {
+      "main": [
+        [
+          {
+            "node": "Text to Speech",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Anonymize & Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text to Speech": {
+      "main": [
+        [
+          {
+            "node": "Anonymize & Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anonymize & Format Response": {
+      "main": [
+        [
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Database": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-15T10:00:00.000Z",
+  "versionId": "1"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "ai-assistant-scripts",
+  "version": "1.0.0",
+  "description": "Setup and utility scripts for AI Assistant backend",
+  "main": "populate-qdrant.js",
+  "scripts": {
+    "populate-qdrant": "node populate-qdrant.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "qdrant",
+    "vector-database",
+    "setup",
+    "scripts"
+  ],
+  "author": "AI Assistant Project",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "knowledge_base": {
+    "faqs": [
+      {
+        "id": "faq_001",
+        "question_en": "What are your shipping options?",
+        "question_de": "Welche Versandoptionen haben Sie?",
+        "answer_en": "We offer standard shipping (3-5 business days) for €4.99, express shipping (1-2 business days) for €9.99, and free shipping on orders over €50.",
+        "answer_de": "Wir bieten Standardversand (3-5 Werktage) für 4,99 €, Expressversand (1-2 Werktage) für 9,99 € und kostenlosen Versand bei Bestellungen über 50 €.",
+        "category": "shipping",
+        "tags": ["shipping", "delivery", "costs", "versand", "lieferung", "kosten"]
+      },
+      {
+        "id": "faq_002",
+        "question_en": "What is your return policy?",
+        "question_de": "Wie ist Ihre Rückgabepolitik?",
+        "answer_en": "You can return items within 30 days of purchase for a full refund. Items must be in original condition with tags attached.",
+        "answer_de": "Sie können Artikel innerhalb von 30 Tagen nach dem Kauf für eine vollständige Rückerstattung zurückgeben. Artikel müssen im Originalzustand mit angebrachten Etiketten sein.",
+        "category": "returns",
+        "tags": ["returns", "refund", "policy", "rückgabe", "erstattung", "richtlinie"]
+      },
+      {
+        "id": "faq_003",
+        "question_en": "Do you have size guides?",
+        "question_de": "Haben Sie Größentabellen?",
+        "answer_en": "Yes, we have detailed size guides for all our clothing items. You can find them on each product page or in our Size Guide section.",
+        "answer_de": "Ja, wir haben detaillierte Größentabellen für alle unsere Kleidungsstücke. Sie finden sie auf jeder Produktseite oder in unserem Größentabellen-Bereich.",
+        "category": "sizing",
+        "tags": ["size", "guide", "measurements", "größe", "tabelle", "maße"]
+      },
+      {
+        "id": "faq_004",
+        "question_en": "What payment methods do you accept?",
+        "question_de": "Welche Zahlungsmethoden akzeptieren Sie?",
+        "answer_en": "We accept all major credit cards (Visa, MasterCard, American Express), PayPal, Apple Pay, Google Pay, and SEPA bank transfers.",
+        "answer_de": "Wir akzeptieren alle gängigen Kreditkarten (Visa, MasterCard, American Express), PayPal, Apple Pay, Google Pay und SEPA-Überweisungen.",
+        "category": "payment",
+        "tags": ["payment", "credit card", "paypal", "zahlung", "kreditkarte"]
+      },
+      {
+        "id": "faq_005",
+        "question_en": "How can I track my order?",
+        "question_de": "Wie kann ich meine Bestellung verfolgen?",
+        "answer_en": "Once your order ships, you'll receive a tracking number via email. You can also track your order in your account dashboard.",
+        "answer_de": "Sobald Ihre Bestellung versendet wird, erhalten Sie eine Sendungsverfolgungsnummer per E-Mail. Sie können Ihre Bestellung auch in Ihrem Konto-Dashboard verfolgen.",
+        "category": "tracking",
+        "tags": ["tracking", "order", "shipping", "verfolgung", "bestellung", "versand"]
+      }
+    ],
+    "product_info": [
+      {
+        "id": "prod_001",
+        "name_en": "Classic Cotton T-Shirt",
+        "name_de": "Klassisches Baumwoll-T-Shirt",
+        "description_en": "Comfortable 100% cotton t-shirt available in multiple colors and sizes. Perfect for casual wear.",
+        "description_de": "Bequemes 100% Baumwoll-T-Shirt in verschiedenen Farben und Größen erhältlich. Perfekt für den Alltag.",
+        "category": "clothing",
+        "subcategory": "t-shirts",
+        "price_eur": 25.00,
+        "sizes": ["XS", "S", "M", "L", "XL", "XXL"],
+        "colors": ["white", "black", "navy", "gray", "red"],
+        "material": "100% Cotton",
+        "care_instructions_en": "Machine wash cold, tumble dry low",
+        "care_instructions_de": "Maschinenwäsche kalt, niedrig trocknen",
+        "tags": ["t-shirt", "cotton", "casual", "baumwolle", "alltag"]
+      },
+      {
+        "id": "prod_002",
+        "name_en": "Premium Denim Jeans",
+        "name_de": "Premium Denim Jeans",
+        "description_en": "High-quality denim jeans with a modern fit. Made from sustainable cotton blend.",
+        "description_de": "Hochwertige Denim-Jeans mit moderner Passform. Hergestellt aus nachhaltiger Baumwollmischung.",
+        "category": "clothing",
+        "subcategory": "jeans",
+        "price_eur": 89.00,
+        "sizes": ["28", "30", "32", "34", "36", "38", "40"],
+        "colors": ["dark blue", "light blue", "black"],
+        "material": "98% Cotton, 2% Elastane",
+        "care_instructions_en": "Machine wash cold, hang dry",
+        "care_instructions_de": "Maschinenwäsche kalt, zum Trocknen aufhängen",
+        "tags": ["jeans", "denim", "premium", "sustainable", "nachhaltig"]
+      },
+      {
+        "id": "prod_003",
+        "name_en": "Wool Blend Sweater",
+        "name_de": "Wollmischung Pullover",
+        "description_en": "Cozy wool blend sweater perfect for cooler weather. Soft and warm with a classic design.",
+        "description_de": "Gemütlicher Wollmischpullover, perfekt für kühleres Wetter. Weich und warm mit klassischem Design.",
+        "category": "clothing",
+        "subcategory": "sweaters",
+        "price_eur": 65.00,
+        "sizes": ["XS", "S", "M", "L", "XL"],
+        "colors": ["cream", "charcoal", "burgundy", "navy"],
+        "material": "70% Wool, 30% Acrylic",
+        "care_instructions_en": "Hand wash or dry clean",
+        "care_instructions_de": "Handwäsche oder chemische Reinigung",
+        "tags": ["sweater", "wool", "warm", "pullover", "wolle", "warm"]
+      }
+    ],
+    "company_info": {
+      "name": "EcoStyle Fashion",
+      "description_en": "Sustainable fashion retailer focused on quality, comfort, and environmental responsibility.",
+      "description_de": "Nachhaltiger Mode-Einzelhändler mit Fokus auf Qualität, Komfort und Umweltverantwortung.",
+      "founded": "2020",
+      "headquarters": "Berlin, Germany",
+      "values": ["sustainability", "quality", "fair trade", "customer satisfaction"],
+      "contact": {
+        "email": "support@ecostyle-fashion.com",
+        "phone": "+49 30 12345678",
+        "address": "Musterstraße 123, 10115 Berlin, Germany"
+      },
+      "business_hours": {
+        "monday_friday": "9:00 - 18:00 CET",
+        "saturday": "10:00 - 16:00 CET",
+        "sunday": "Closed"
+      }
+    }
+  }
+}
